@@ -1,0 +1,2 @@
+ninja: Entering directory `/Users/macpro/Documents/code/ai-traffic-android/openCV/.cxx/Debug/392e2c6f/arm64-v8a'
+ninja: no work to do.
