@@ -1,23 +1,53 @@
 package com.cloublab.aitraffic;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.os.Bundle;
-import android.util.Log;
+import android.provider.MediaStore;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.Toast;
 
-import org.opencv.android.OpenCVLoader;
+import com.cloublab.aitraffic.helper.FaceRecognitionHelper;
+import com.cloublab.aitraffic.helper.JsonDatabase;
+
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "AI-OPENCV";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        if(OpenCVLoader.initLocal()){
-            Log.e("TAG", "Success");
-        }else {
-            Log.e("TAG", "Fail");
-        }
+        findViewById(R.id.tensor_open).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, TensorOpen.class));
+            }
+        });
+
+        findViewById(R.id.register).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, FaceRegister.class));
+            }
+        });
+
+
+        findViewById(R.id.recognition).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, FaceRecognition.class));
+            }
+        });
+
     }
+
 }
