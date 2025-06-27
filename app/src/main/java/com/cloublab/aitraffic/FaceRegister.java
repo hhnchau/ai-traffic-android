@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -27,6 +28,7 @@ import com.cloublab.aitraffic.helper.JsonDatabase;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class FaceRegister extends AppCompatActivity {
         private static final int CAMERA_REQUEST = 100;
@@ -57,6 +59,7 @@ public class FaceRegister extends AppCompatActivity {
                             faceBitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
                             faceBitmap = correctImageRotation(imageFile, faceBitmap);
                             imageView.setImageBitmap(faceBitmap);
+                            Log.d("FACE_RECOGNITION", "Image size: " + faceBitmap.getWidth() + "x" + faceBitmap.getHeight());
 
                         }
                     });
@@ -80,6 +83,7 @@ public class FaceRegister extends AppCompatActivity {
                     float[] embedding = faceHelper.getFaceEmbedding(faceBitmap);
                     jsonDatabase.saveEmbedding("User1", embedding);
                     Toast.makeText(this, "Saved!", Toast.LENGTH_SHORT).show();
+                    Log.d("FACE_REGISTER", Arrays.toString(embedding));
                 }
             });
         }

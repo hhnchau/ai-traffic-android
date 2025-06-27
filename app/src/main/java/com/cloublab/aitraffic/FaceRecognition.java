@@ -12,6 +12,7 @@ import android.graphics.SurfaceTexture;
 import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
@@ -57,13 +58,16 @@ public class FaceRecognition extends AppCompatActivity {
     private static final int CAMERA_PERMISSION_CODE = 100;
     private TextureView textureView;
     private CameraDevice cameraDevice;
-    private CameraCaptureSession cameraCaptureSession;
     private ImageReader imageReader;
-    private Interpreter tfLite;
     private List<FaceData> knownFaces;
 
     private FaceRecognitionHelper faceHelper;
     private FaceDetector detector;
+
+    private Handler backgroundHandler;
+
+    private long lastDetectTime = 0;
+    private static final long DETECT_INTERVAL = 1000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +87,13 @@ public class FaceRecognition extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        if (cameraDevice != null) cameraDevice.close();
+        if(imageReader != null) imageReader.close();
+    }
+
+    @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == CAMERA_PERMISSION_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -97,11 +108,14 @@ public class FaceRecognition extends AppCompatActivity {
         detector = FaceDetection.getClient(
                 new FaceDetectorOptions.Builder()
                         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                        .enableTracking()
                         .build());
 
-        tfLite = new Interpreter(loadModelFile("mobile_face_net.tflite"));
         knownFaces = loadKnownFacesFromJson();
+
+        HandlerThread thread = new HandlerThread("CameraBackground");
+        thread.start();
+        backgroundHandler = new Handler(thread.getLooper());
+
         startCamera();
     }
 
@@ -120,18 +134,31 @@ public class FaceRecognition extends AppCompatActivity {
 
     private void openCamera() {
         CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        HandlerThread handlerThread = new HandlerThread("CameraBackground");
-        handlerThread.start();
-        Handler backgroundHandler = new Handler(handlerThread.getLooper());
         try {
-            String cameraId = cameraManager.getCameraIdList()[1];
+            String cameraId = null;
+            for (String id: cameraManager.getCameraIdList()){
+                CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
+                Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
+                if(facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT){
+                    cameraId = id;
+                    break;
+                }
+            }
+
+            if(cameraId == null) return;
+
             imageReader = ImageReader.newInstance(640, 480, ImageFormat.YUV_420_888, 2);
             imageReader.setOnImageAvailableListener(reader -> {
+
                 Image image = reader.acquireLatestImage();
                 if (image != null) {
-                    Bitmap bitmap = convertYUVToBitmap(image);
-                    bitmap = rotateBitmap(bitmap, 270, true);
-                    detectAndRecognize(bitmap);
+                    /// Handle Image
+                    if(System.currentTimeMillis() - lastDetectTime > DETECT_INTERVAL){
+                        lastDetectTime = System.currentTimeMillis();
+                        Bitmap bitmap = convertYUVToBitmap(image);
+                        bitmap = rotateBitmap(bitmap, 270, true);
+                        detectAndRecognize(bitmap);
+                    }
                     image.close();
                 }
             }, backgroundHandler);
@@ -160,13 +187,12 @@ public class FaceRecognition extends AppCompatActivity {
             cameraDevice.createCaptureSession(Arrays.asList(previewSurface, imageSurface),
                     new CameraCaptureSession.StateCallback() {
                         @Override public void onConfigured(@NonNull CameraCaptureSession session) {
-                            cameraCaptureSession = session;
                             try {
                                 CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                                 builder.addTarget(previewSurface);
                                 builder.addTarget(imageSurface);
                                 builder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-                                session.setRepeatingRequest(builder.build(), null, null);
+                                session.setRepeatingRequest(builder.build(), null, backgroundHandler);
                             } catch (CameraAccessException e) { e.printStackTrace(); }
                         }
 
@@ -212,7 +238,7 @@ public class FaceRecognition extends AppCompatActivity {
     private void detectAndRecognize(Bitmap bitmap) {
         InputImage image = InputImage.fromBitmap(bitmap, 0);
         detector.process(image).addOnSuccessListener(faces -> {
-            Log.d("FACE_RECOGNITION", "=================" + faces.size());
+            if(faces.size() > 0)Log.d("FACE_RECOGNITION", "=================" + faces.size());
             for (Face face : faces) {
                 Rect bounds = face.getBoundingBox();
 
@@ -224,12 +250,16 @@ public class FaceRecognition extends AppCompatActivity {
                     Bitmap faceBitmap = Bitmap.createBitmap(bitmap, x,y,width, height);
                     float[] embedding = faceHelper.getFaceEmbedding(faceBitmap);
                     String name = compareWithKnownFaces(embedding);
+                    Log.d("FACE_RECOGNITION", Arrays.toString(embedding));
                     Log.d("FACE_RECOGNITION", "Matched: " + name);
                     if(!name.equals("Unknown"))Toast.makeText(this, name, Toast.LENGTH_SHORT).show();
+                    faceBitmap.recycle();
                 }
             }
+            bitmap.recycle();
         }).addOnFailureListener(e -> {
             Log.e("FACE_RECOGNITION", "Lỗi ML Kit", e);
+            bitmap.recycle();
             Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
         });
     }
@@ -240,7 +270,8 @@ public class FaceRecognition extends AppCompatActivity {
         String bestName = "Unknown";
         for (FaceData face : knownFaces) {
             float score = cosineSimilarity(embedding, face.embedding);
-            if (score > bestScore && score > 0.75f) {
+            Log.d("FACE_RECOGNITION", "Score: " + score);
+            if (score > bestScore && score > 0.58f) {
                 bestScore = score;
                 bestName = face.name;
             }
@@ -256,19 +287,6 @@ public class FaceRecognition extends AppCompatActivity {
             normB += b[i] * b[i];
         }
         return dot / (float) (Math.sqrt(normA) * Math.sqrt(normB));
-    }
-
-    private MappedByteBuffer loadModelFile(String modelName) {
-        try (AssetFileDescriptor fileDescriptor = getAssets().openFd(modelName);
-             FileInputStream inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
-             FileChannel fileChannel = inputStream.getChannel()) {
-            long startOffset = fileDescriptor.getStartOffset();
-            long declaredLength = fileDescriptor.getDeclaredLength();
-            return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
     }
 
     private List<FaceData> loadKnownFacesFromJson() {
