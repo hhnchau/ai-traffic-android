@@ -32,6 +32,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.cloublab.aitraffic.helper.FaceRecognitionHelper;
 import com.cloublab.aitraffic.helper.JsonDatabase;
+import com.cloublab.aitraffic.helper.OverlayView;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
@@ -69,6 +70,8 @@ public class FaceRecognition extends AppCompatActivity {
     private long lastDetectTime = 0;
     private static final long DETECT_INTERVAL = 1000;
 
+    private OverlayView overlayView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -77,6 +80,7 @@ public class FaceRecognition extends AppCompatActivity {
         faceHelper = new FaceRecognitionHelper(this);
 
         textureView = findViewById(R.id.textureView);
+        overlayView = findViewById(R.id.overlayView);
 
         if (checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{android.Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
@@ -239,6 +243,8 @@ public class FaceRecognition extends AppCompatActivity {
         InputImage image = InputImage.fromBitmap(bitmap, 0);
         detector.process(image).addOnSuccessListener(faces -> {
             if(faces.size() > 0)Log.d("FACE_RECOGNITION", "=================" + faces.size());
+            List<Rect> rects = new ArrayList<>();
+            List<String> labels = new ArrayList<>();
             for (Face face : faces) {
                 Rect bounds = face.getBoundingBox();
 
@@ -246,13 +252,19 @@ public class FaceRecognition extends AppCompatActivity {
                 int y = Math.max(bounds.top, 0);
                 int width = Math.min(bounds.width(), bitmap.getWidth() - x);
                 int height = Math.min(bounds.height(), bitmap.getHeight() - y);
+
                 if(width > 0 && height > 0 && x + width <= bitmap.getWidth() && y + height <= bitmap.getHeight()){
                     Bitmap faceBitmap = Bitmap.createBitmap(bitmap, x,y,width, height);
                     float[] embedding = faceHelper.getFaceEmbedding(faceBitmap);
                     String name = compareWithKnownFaces(embedding);
-                    Log.d("FACE_RECOGNITION", Arrays.toString(embedding));
+                    //Log.d("FACE_RECOGNITION", Arrays.toString(embedding));
                     Log.d("FACE_RECOGNITION", "Matched: " + name);
                     if(!name.equals("Unknown"))Toast.makeText(this, name, Toast.LENGTH_SHORT).show();
+
+                    rects.add(bounds);
+                    labels.add(name);
+                    overlayView.setFaces(rects, labels);
+
                     faceBitmap.recycle();
                 }
             }

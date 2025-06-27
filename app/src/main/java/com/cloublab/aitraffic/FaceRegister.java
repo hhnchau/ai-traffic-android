@@ -83,7 +83,7 @@ public class FaceRegister extends AppCompatActivity {
                     float[] embedding = faceHelper.getFaceEmbedding(faceBitmap);
                     jsonDatabase.saveEmbedding("User1", embedding);
                     Toast.makeText(this, "Saved!", Toast.LENGTH_SHORT).show();
-                    Log.d("FACE_REGISTER", Arrays.toString(embedding));
+                    //Log.d("FACE_REGISTER", Arrays.toString(embedding));
                 }
             });
         }
