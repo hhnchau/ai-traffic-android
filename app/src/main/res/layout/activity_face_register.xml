@@ -1,29 +1,30 @@
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:padding="16dp">
+    android:layout_height="match_parent">
 
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="250dp"
-        android:layout_height="250dp"
-        android:layout_gravity="center"
-        android:scaleType="centerCrop"
-        android:background="#EEE" />
+    <TextureView
+        android:id="@+id/textureView"
+        android:layout_width="match_parent"
+        android:layout_height="500dp" />
 
-    <Button
-        android:id="@+id/btnCapture"
+    <EditText
+        android:id="@+id/nameInput"
+        android:layout_below="@id/textureView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Capture Face"
-        android:layout_marginTop="16dp"/>
+        android:hint="Tên người dùng" />
 
     <Button
-        android:id="@+id/btnSave"
+        android:id="@+id/captureBtn"
+        android:layout_below="@id/nameInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Save Face"
-        android:layout_marginTop="8dp"/>
-</LinearLayout>
+        android:text="Chụp ảnh" />
+
+    <Button
+        android:id="@+id/saveBtn"
+        android:layout_below="@id/captureBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Lưu khuôn mặt" />
+</RelativeLayout>

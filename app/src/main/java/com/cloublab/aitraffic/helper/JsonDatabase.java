@@ -8,6 +8,8 @@ import android.content.SharedPreferences;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.List;
+
 public class JsonDatabase {
     private SharedPreferences prefs;
 
@@ -15,7 +17,7 @@ public class JsonDatabase {
         prefs = context.getSharedPreferences("FaceData", MODE_PRIVATE);
     }
 
-    public void saveEmbedding(String name, float[] embedding) {
+    public void saveEmbedding(String name, List<float[]> embeddingsList) {
         try {
             String jsonString = prefs.getString("face_json", null);
             JSONArray users;
@@ -29,11 +31,15 @@ public class JsonDatabase {
             userObj.put("name", name);
 
             JSONArray embedArray = new JSONArray();
-            for (float v : embedding) {
-                embedArray.put(v);
+            for (float[] embedding : embeddingsList) {
+                JSONArray single = new JSONArray();
+                for(float v: embedding) {
+                    single.put(v);
+                }
+                embedArray.put(single);
             }
 
-            userObj.put("embedding", embedArray);
+            userObj.put("embeddings", embedArray);
             users.put(userObj);
 
             JSONObject root = new JSONObject();

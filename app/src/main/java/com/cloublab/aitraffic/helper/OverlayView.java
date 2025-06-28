@@ -44,6 +44,24 @@ public class OverlayView extends View {
         invalidate();
     }
 
+    public Rect mapRectToOverlay(Rect faceRect, int bitmapWidth, int bitmapHeight, int overlayWidth, int overlayHeight, boolean isFrontCamera){
+        float scaleX = (float)overlayWidth / bitmapWidth;
+        float scaleY = (float)overlayHeight / bitmapHeight;
+
+        int left = Math.round(faceRect.left * scaleX);
+        int top = Math.round(faceRect.top * scaleY);
+        int right = Math.round(faceRect.right * scaleX);
+        int bottom = Math.round(faceRect.bottom * scaleY);
+
+        if(isFrontCamera){
+            int mirroredLeft = overlayWidth - right;
+            int mirroredRight = overlayWidth - left;
+            left = mirroredLeft;
+            right = mirroredRight;
+        }
+        return new Rect(left, top, right, bottom);
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);

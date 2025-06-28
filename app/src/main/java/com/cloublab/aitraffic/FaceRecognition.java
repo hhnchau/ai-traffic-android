@@ -33,6 +33,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.cloublab.aitraffic.helper.FaceRecognitionHelper;
 import com.cloublab.aitraffic.helper.JsonDatabase;
 import com.cloublab.aitraffic.helper.OverlayView;
+import com.cloublab.aitraffic.helper.VibrationHelper;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
@@ -68,7 +69,7 @@ public class FaceRecognition extends AppCompatActivity {
     private Handler backgroundHandler;
 
     private long lastDetectTime = 0;
-    private static final long DETECT_INTERVAL = 1000;
+    private static final long DETECT_INTERVAL = 500;
 
     private OverlayView overlayView;
 
@@ -222,8 +223,7 @@ public class FaceRecognition extends AppCompatActivity {
         vBuffer.get(nv21, ySize, vSize);
         uBuffer.get(nv21, ySize + vSize, uSize);
 
-        YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21,
-                image.getWidth(), image.getHeight(), null);
+        YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, image.getWidth(), image.getHeight(), null);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         yuvImage.compressToJpeg(new Rect(0, 0, image.getWidth(), image.getHeight()), 100, out);
         byte[] jpegBytes = out.toByteArray();
@@ -243,30 +243,42 @@ public class FaceRecognition extends AppCompatActivity {
         InputImage image = InputImage.fromBitmap(bitmap, 0);
         detector.process(image).addOnSuccessListener(faces -> {
             if(faces.size() > 0)Log.d("FACE_RECOGNITION", "=================" + faces.size());
+            int bitmapWidth = bitmap.getWidth();
+            int bitmapHeight = bitmap.getHeight();
+            int overlayWidth = overlayView.getWidth();
+            int overlayHeight = overlayView.getHeight();
             List<Rect> rects = new ArrayList<>();
             List<String> labels = new ArrayList<>();
-            for (Face face : faces) {
-                Rect bounds = face.getBoundingBox();
+            if(faces.size() > 0) {
+                for (Face face : faces) {
+                    Rect bounds = face.getBoundingBox();
 
-                int x = Math.max(bounds.left, 0);
-                int y = Math.max(bounds.top, 0);
-                int width = Math.min(bounds.width(), bitmap.getWidth() - x);
-                int height = Math.min(bounds.height(), bitmap.getHeight() - y);
+                    int x = Math.max(bounds.left, 0);
+                    int y = Math.max(bounds.top, 0);
+                    int width = Math.min(bounds.width(), bitmap.getWidth() - x);
+                    int height = Math.min(bounds.height(), bitmap.getHeight() - y);
 
-                if(width > 0 && height > 0 && x + width <= bitmap.getWidth() && y + height <= bitmap.getHeight()){
-                    Bitmap faceBitmap = Bitmap.createBitmap(bitmap, x,y,width, height);
-                    float[] embedding = faceHelper.getFaceEmbedding(faceBitmap);
-                    String name = compareWithKnownFaces(embedding);
-                    //Log.d("FACE_RECOGNITION", Arrays.toString(embedding));
-                    Log.d("FACE_RECOGNITION", "Matched: " + name);
-                    if(!name.equals("Unknown"))Toast.makeText(this, name, Toast.LENGTH_SHORT).show();
+                    if (width > 0 && height > 0 && x + width <= bitmap.getWidth() && y + height <= bitmap.getHeight()) {
+                        Bitmap faceBitmap = Bitmap.createBitmap(bitmap, x, y, width, height);
+                        float[] embedding = faceHelper.getFaceEmbedding(faceBitmap);
+                        String name = compareWithKnownFaces(embedding);
+                        //Log.d("FACE_RECOGNITION", Arrays.toString(embedding));
+                        Log.d("FACE_RECOGNITION", "Matched: " + name);
+                        if (!name.equals("Unknown"))
+                            Toast.makeText(this, name, Toast.LENGTH_SHORT).show();
 
-                    rects.add(bounds);
-                    labels.add(name);
-                    overlayView.setFaces(rects, labels);
+                        Rect mapped = overlayView.mapRectToOverlay(bounds, bitmapWidth, bitmapHeight, overlayWidth, overlayHeight, true);
+                        rects.add(mapped);
+                        labels.add(name);
+                        overlayView.setFaces(rects, labels);
 
-                    faceBitmap.recycle();
+                        faceBitmap.recycle();
+                    }
                 }
+            }else {
+                overlayView.setFaces(new ArrayList<>(), new ArrayList<>());
+                rects.clear();
+                labels.clear();
             }
             bitmap.recycle();
         }).addOnFailureListener(e -> {
@@ -278,14 +290,17 @@ public class FaceRecognition extends AppCompatActivity {
 
 
     private String compareWithKnownFaces(float[] embedding) {
-        float bestScore = -1;
+        float bestScore = -1f;
         String bestName = "Unknown";
         for (FaceData face : knownFaces) {
-            float score = cosineSimilarity(embedding, face.embedding);
-            Log.d("FACE_RECOGNITION", "Score: " + score);
-            if (score > bestScore && score > 0.58f) {
-                bestScore = score;
-                bestName = face.name;
+            for(float[] knownEmbedding: face.embeddings){
+                float score = cosineSimilarity(embedding, knownEmbedding);
+                Log.d("FACE_RECOGNITION", "Face Name: " + face.name +  ", Score: " + score);
+                if (score > bestScore && score > 0.58f) {
+                    bestScore = score;
+                    bestName = face.name;
+                    VibrationHelper.vibrate(this, 200);
+                }
             }
         }
         return bestName;
@@ -314,12 +329,17 @@ public class FaceRecognition extends AppCompatActivity {
             for (int i = 0; i < users.length(); i++) {
                 JSONObject obj = users.getJSONObject(i);
                 String name = obj.getString("name");
-                JSONArray embed = obj.getJSONArray("embedding");
-                float[] emb = new float[embed.length()];
-                for (int j = 0; j < embed.length(); j++){
-                    emb[j] = (float) embed.getDouble(j);
+                JSONArray embedArray = obj.getJSONArray("embeddings");
+                List<float[]> allEmbeddings = new ArrayList<>();
+                for (int j = 0; j < embedArray.length(); j++) {
+                    JSONArray single = embedArray.getJSONArray(j);
+                    float[] emb = new float[single.length()];
+                    for (int k = 0; k < single.length(); k++) {
+                        emb[k] = (float) single.getDouble(k);
+                    }
+                    allEmbeddings.add(emb);
                 }
-                list.add(new FaceData(name, emb));
+                list.add(new FaceData(name, allEmbeddings));
             }
         } catch (JSONException e) {
             e.printStackTrace();
@@ -329,10 +349,30 @@ public class FaceRecognition extends AppCompatActivity {
 
     static class FaceData {
         String name;
-        float[] embedding;
-        FaceData(String name, float[] embedding) {
+        List<float[]> embeddings;
+
+        FaceData(String name) {
             this.name = name;
-            this.embedding = embedding;
+            this.embeddings = new ArrayList<>();
+        }
+
+        FaceData(String name, List<float[]> embeddings) {
+            this.name = name;
+            this.embeddings = embeddings;
+        }
+
+        float[] getAverageEmbedding(){
+            int size = embeddings.get(0).length;
+            float[] avg = new float[size];
+            for (float[] emb:embeddings){
+                for(int i = 0; i < size; i++){
+                    avg[i] = emb[i];
+                }
+            }
+            for(int i = 0; i < size; i++){
+                avg[i] /= embeddings.size();
+            }
+            return avg;
         }
     }
 
