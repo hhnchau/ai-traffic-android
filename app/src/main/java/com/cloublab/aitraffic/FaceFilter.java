@@ -6,6 +6,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.PointF;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.media.Image;
 import android.os.Bundle;
 import android.util.Log;
@@ -22,8 +24,11 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import com.cloublab.aitraffic.helper.AspectRatioSurfaceView;
 import com.cloublab.aitraffic.helper.Camera2Helper;
+import com.cloublab.aitraffic.helper.OverlayViewBox;
 import com.cloublab.aitraffic.helper.OverlayViewFilter;
+import com.cloublab.aitraffic.helper.VibrationHelper;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
@@ -31,6 +36,7 @@ import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 import com.google.mlkit.vision.face.FaceLandmark;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,28 +44,39 @@ import java.util.List;
 public class FaceFilter extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 200;
     private Camera2Helper camera2Helper;
-    private OverlayViewFilter overlayView;
+    private OverlayViewBox overlayView;
     private Bitmap mouthBitmap;
     private boolean isProcessing = false;
+    private FaceDetector detector;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         FrameLayout layout = new FrameLayout(this);
         setContentView(layout);
 
-        SurfaceView surfaceView = new SurfaceView(this);
+        AspectRatioSurfaceView surfaceView = new AspectRatioSurfaceView(this);
+        surfaceView.setAspectRatio(4f/3f);
         layout.addView(surfaceView);
 
-        overlayView = new OverlayViewFilter(this);
+        overlayView = new OverlayViewBox(this);
         layout.addView(overlayView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        mouthBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.cigar);
-        Bitmap resized = Bitmap.createScaledBitmap(mouthBitmap, 100, 40, true);
-        overlayView.setMouthBitmap(resized);
+        //mouthBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.cigar);
+        //Bitmap resized = Bitmap.createScaledBitmap(mouthBitmap, 100, 40, true);
+        //overlayView.setMouthBitmap(resized);
 
         if(ActivityCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
             return;
         }
+
+        FaceDetectorOptions options = new FaceDetectorOptions.Builder()
+                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+                .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
+                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+                .setMinFaceSize(0.03f)
+                .build();
+        detector = FaceDetection.getClient(options);
 
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
@@ -84,7 +101,7 @@ public class FaceFilter extends AppCompatActivity {
         camera2Helper.start();
     }
 
-    private void processImage(Image image){
+    private void processImage1(Image image){
         if (isProcessing) {
             image.close();
             return;
@@ -112,7 +129,7 @@ public class FaceFilter extends AppCompatActivity {
                         }
                     }
                     if(mouthPoints.size() > 0)Toast.makeText(this, "[" + mouthPoints.size() + "]", Toast.LENGTH_SHORT).show();
-                    overlayView.setMouthPositions(mouthPoints);
+                    //overlayView.setMouthPositions(mouthPoints);
                     image.close();
                     isProcessing = false;
                 })
@@ -123,7 +140,64 @@ public class FaceFilter extends AppCompatActivity {
                 });
     }
 
-    private byte[] yuv420ToNV21(Image image) {
+    private int getRotationDegrees() {
+        WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+        int rotation = windowManager.getDefaultDisplay().getRotation();
+        switch (rotation) {
+            case Surface.ROTATION_0: return 90;
+            case Surface.ROTATION_180: return 270;
+            case Surface.ROTATION_270: return 180;
+            default: return 0;
+        }
+    }
+
+
+    /*FACE BOUNDING BOX*/
+    private void processImage(Image image){
+        if (isProcessing) {
+            image.close();
+            return;
+        }
+        isProcessing = true;
+        Bitmap bitmap = yuvToBitmap(image);
+        image.close();
+
+        int rotationDegrees = getRotationDegrees();
+
+        InputImage inputImage = InputImage.fromBitmap(bitmap, rotationDegrees);
+
+        detector.process(inputImage)
+                .addOnSuccessListener(faces->{
+                    if(faces.size() > 0) VibrationHelper.vibrate(this, 200);
+                    List<Rect> facesRect = new ArrayList<>();
+                    for(Face face: faces){
+                        Rect rect = face.getBoundingBox();
+                        Log.e("FACE_FILTER", "=====TOP=====" + rect.top);
+                        Log.e("FACE_FILTER", "=====LEFT=====" + rect.left);
+                        Log.e("FACE_FILTER", "=====BOTTOM=====" + rect.bottom);
+                        Log.e("FACE_FILTER", "=====RIGHT=====" + rect.right);
+                        facesRect.add(face.getBoundingBox());
+                    }
+                    overlayView.setFaceBoxes(facesRect, true);
+                })
+                .addOnCompleteListener(task -> {
+                    isProcessing = false;
+                })
+                .addOnFailureListener(e->{
+                    Log.e("FACE_FILTER", e.toString());
+                });
+    }
+
+
+    public static Bitmap yuvToBitmap(Image image) {
+        YuvImage yuvImage = convertYUV420888ToYuvImage(image);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        yuvImage.compressToJpeg(new Rect(0, 0, image.getWidth(), image.getHeight()), 100, out);
+        byte[] imageBytes = out.toByteArray();
+        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+    }
+
+    private static YuvImage convertYUV420888ToYuvImage(Image image) {
         ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
         ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
         ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
@@ -133,34 +207,11 @@ public class FaceFilter extends AppCompatActivity {
         int vSize = vBuffer.remaining();
 
         byte[] nv21 = new byte[ySize + uSize + vSize];
-
-        // Copy Y
         yBuffer.get(nv21, 0, ySize);
+        vBuffer.get(nv21, ySize, vSize);
+        uBuffer.get(nv21, ySize + vSize, uSize);
 
-        // Copy VU (not UV)
-        byte[] uBytes = new byte[uSize];
-        byte[] vBytes = new byte[vSize];
-        uBuffer.get(uBytes);
-        vBuffer.get(vBytes);
-
-        for (int i = 0; i < uSize; i++) {
-            nv21[ySize + i * 2] = vBytes[i];
-            nv21[ySize + i * 2 + 1] = uBytes[i];
-        }
-
-        return nv21;
-    }
-
-    private int getRotationDegrees() {
-        WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-        int rotation = windowManager.getDefaultDisplay().getRotation();
-        switch (rotation) {
-            case Surface.ROTATION_0: return 90;
-            case Surface.ROTATION_90: return 0;
-            case Surface.ROTATION_180: return 270;
-            case Surface.ROTATION_270: return 180;
-            default: return 0;
-        }
+        return new YuvImage(nv21, ImageFormat.NV21, image.getWidth(), image.getHeight(), null);
     }
 
 }
