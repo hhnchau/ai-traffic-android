@@ -44,4 +44,7 @@ dependencies {
     //Face Detection
     implementation 'com.google.mlkit:face-detection:16.1.5'
 
+    // Google Vision
+    implementation 'com.google.mediapipe:tasks-vision:0.10.21'
+
 }

@@ -1,24 +1,20 @@
 package com.cloublab.aitraffic;
 
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
-import android.graphics.PointF;
+import android.graphics.Matrix;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.YuvImage;
 import android.media.Image;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
-import android.view.Surface;
 import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -27,14 +23,14 @@ import androidx.core.app.ActivityCompat;
 import com.cloublab.aitraffic.helper.AspectRatioSurfaceView;
 import com.cloublab.aitraffic.helper.Camera2Helper;
 import com.cloublab.aitraffic.helper.OverlayViewBox;
-import com.cloublab.aitraffic.helper.OverlayViewFilter;
-import com.cloublab.aitraffic.helper.VibrationHelper;
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.face.Face;
-import com.google.mlkit.vision.face.FaceDetection;
-import com.google.mlkit.vision.face.FaceDetector;
-import com.google.mlkit.vision.face.FaceDetectorOptions;
-import com.google.mlkit.vision.face.FaceLandmark;
+import com.google.mediapipe.framework.image.BitmapImageBuilder;
+import com.google.mediapipe.framework.image.MPImage;
+import com.google.mediapipe.framework.image.MediaImageBuilder;
+import com.google.mediapipe.tasks.components.containers.Detection;
+import com.google.mediapipe.tasks.core.BaseOptions;
+import com.google.mediapipe.tasks.vision.core.RunningMode;
+
+import com.google.mediapipe.tasks.vision.facedetector.FaceDetector;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
@@ -45,7 +41,6 @@ public class FaceFilter extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 200;
     private Camera2Helper camera2Helper;
     private OverlayViewBox overlayView;
-    private Bitmap mouthBitmap;
     private boolean isProcessing = false;
     private FaceDetector detector;
     @Override
@@ -60,23 +55,37 @@ public class FaceFilter extends AppCompatActivity {
 
         overlayView = new OverlayViewBox(this);
         layout.addView(overlayView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        //mouthBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.cigar);
-        //Bitmap resized = Bitmap.createScaledBitmap(mouthBitmap, 100, 40, true);
-        //overlayView.setMouthBitmap(resized);
 
         if(ActivityCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
             return;
         }
 
-        FaceDetectorOptions options = new FaceDetectorOptions.Builder()
-                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-                .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
-                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-                .setMinFaceSize(0.03f)
+        FaceDetector.FaceDetectorOptions options = FaceDetector.FaceDetectorOptions.builder()
+                .setBaseOptions(
+                        BaseOptions.builder()
+                                .setModelAssetPath("blaze_face_short_range.tflite")
+                                .build()
+                ).setRunningMode(RunningMode.LIVE_STREAM)
+                .setMinDetectionConfidence(0.5f)
+                .setResultListener((result, image)->{
+                    runOnUiThread(()->{
+                        overlayView.setFaceBoxes(result, image.getHeight(), image.getWidth());
+                        isProcessing = false;
+                    });
+
+                })
+                .setErrorListener(error->{
+                    Log.e("FACE_VISION", "Detection error: " + error.getMessage());
+                    isProcessing = false;
+                })
                 .build();
-        detector = FaceDetection.getClient(options);
+
+        try {
+            detector = FaceDetector.createFromOptions(this, options);
+        } catch (Exception e) {
+            Log.e("FACE_VISION", "Init detector error", e);
+        }
 
         surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
@@ -101,57 +110,6 @@ public class FaceFilter extends AppCompatActivity {
         camera2Helper.start();
     }
 
-    private void processImage1(Image image){
-        if (isProcessing) {
-            image.close();
-            return;
-        }
-
-        isProcessing = true;
-
-        int rotationDegrees = getRotationDegrees();
-
-        InputImage inputImage = InputImage.fromMediaImage(image,  rotationDegrees);
-
-        FaceDetectorOptions options = new FaceDetectorOptions.Builder()
-                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-                .build();
-
-        FaceDetector detector = FaceDetection.getClient(options);
-        detector.process(inputImage)
-                .addOnSuccessListener(faces ->{
-                    List<PointF> mouthPoints = new ArrayList<>();
-                    for(Face face: faces){
-                        FaceLandmark mouth = face.getLandmark(FaceLandmark.MOUTH_BOTTOM);
-                        if(mouth!= null){
-                            mouthPoints.add(mouth.getPosition());
-                        }
-                    }
-                    if(mouthPoints.size() > 0)Toast.makeText(this, "[" + mouthPoints.size() + "]", Toast.LENGTH_SHORT).show();
-                    //overlayView.setMouthPositions(mouthPoints);
-                    image.close();
-                    isProcessing = false;
-                })
-                .addOnFailureListener(e->{
-                    Log.e("FACE_FILTER", "MLKit failed: ", e);
-                    image.close();
-                    isProcessing = false;
-                });
-    }
-
-    private int getRotationDegrees() {
-        WindowManager windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-        int rotation = windowManager.getDefaultDisplay().getRotation();
-        switch (rotation) {
-            case Surface.ROTATION_0: return 90;
-            case Surface.ROTATION_180: return 270;
-            case Surface.ROTATION_270: return 180;
-            default: return 0;
-        }
-    }
-
-
     /*FACE BOUNDING BOX*/
     private void processImage(Image image){
         if (isProcessing) {
@@ -159,42 +117,36 @@ public class FaceFilter extends AppCompatActivity {
             return;
         }
         isProcessing = true;
-        Bitmap bitmap = yuvToBitmap(image);
-        image.close();
 
-        int rotationDegrees = getRotationDegrees();
+        try {
 
-        InputImage inputImage = InputImage.fromBitmap(bitmap, rotationDegrees);
+            Bitmap bitmap =yuvToBitmap(image);
+            image.close();
+            if(bitmap.getConfig() != Bitmap.Config.ARGB_8888){
+                bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, false);
+            }
 
-        detector.process(inputImage)
-                .addOnSuccessListener(faces->{
-                    if(faces.size() > 0) VibrationHelper.vibrate(this, 200);
-                    List<Rect> facesRect = new ArrayList<>();
-                    for(Face face: faces){
-                        Rect rect = face.getBoundingBox();
-                        Log.e("FACE_FILTER", "=====TOP=====" + rect.top);
-                        Log.e("FACE_FILTER", "=====LEFT=====" + rect.left);
-                        Log.e("FACE_FILTER", "=====BOTTOM=====" + rect.bottom);
-                        Log.e("FACE_FILTER", "=====RIGHT=====" + rect.right);
-                        facesRect.add(face.getBoundingBox());
-                    }
-                    overlayView.setFaceBoxes(facesRect, true);
-                })
-                .addOnCompleteListener(task -> {
-                    isProcessing = false;
-                })
-                .addOnFailureListener(e->{
-                    Log.e("FACE_FILTER", e.toString());
-                });
+            MPImage mpImage = new BitmapImageBuilder(bitmap).build();
+            detector.detectAsync(mpImage, System.currentTimeMillis());
+        }catch (Exception e){
+            Log.e("FACE_VISION", "Error creating MPImage", e);
+            image.close();
+            isProcessing = false;
+        }
     }
-
 
     public static Bitmap yuvToBitmap(Image image) {
         YuvImage yuvImage = convertYUV420888ToYuvImage(image);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         yuvImage.compressToJpeg(new Rect(0, 0, image.getWidth(), image.getHeight()), 100, out);
         byte[] imageBytes = out.toByteArray();
-        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+        Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+
+        Matrix matrix = new Matrix();
+        matrix.postRotate(270);
+        matrix.postScale(-1, 1);
+
+        return Bitmap.createBitmap(bitmap, 0,0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
     }
 
     private static YuvImage convertYUV420888ToYuvImage(Image image) {
