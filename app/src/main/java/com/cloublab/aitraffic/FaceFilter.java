@@ -65,7 +65,7 @@ public class FaceFilter extends AppCompatActivity {
                 .setMinDetectionConfidence(0.5f)
                 .setResultListener((result, image)->{
                     runOnUiThread(()->{
-                        overlayView.setFaceBoxes(result, image.getHeight(), image.getWidth());
+                        overlayView.setFaceBoxes(result, image.getWidth(), image.getHeight());
                         isProcessing = false;
                     });
 

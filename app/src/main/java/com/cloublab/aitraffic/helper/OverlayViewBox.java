@@ -43,7 +43,7 @@ public class OverlayViewBox extends View {
     }
 
 
-    public void setFaceBoxes(FaceDetectorResult result, int imageHeight, int imageWidth){
+    public void setFaceBoxes(FaceDetectorResult result, int imageWidth, int imageHeight){
        this.result = result;
         scaleFactor = Math.min(getWidth() * 1f / imageWidth, getHeight() * 1f / imageHeight);
         postInvalidate();
