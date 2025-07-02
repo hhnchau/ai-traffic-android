@@ -33,6 +33,7 @@
         <activity android:name=".FaceRegister"/>
         <activity android:name=".FaceRecognition"/>
         <activity android:name=".FaceFilter"/>
+        <activity android:name=".FaceDetector"/>
 
         <provider
             android:name="androidx.core.content.FileProvider"

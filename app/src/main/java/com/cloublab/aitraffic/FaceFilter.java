@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Rect;
-import android.graphics.RectF;
 import android.graphics.YuvImage;
 import android.media.Image;
 import android.os.Bundle;
@@ -20,13 +19,11 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
-import com.cloublab.aitraffic.helper.AspectRatioSurfaceView;
+import com.cloublab.aitraffic.helper.SurfaceViewAspectRatio;
 import com.cloublab.aitraffic.helper.Camera2Helper;
 import com.cloublab.aitraffic.helper.OverlayViewBox;
 import com.google.mediapipe.framework.image.BitmapImageBuilder;
 import com.google.mediapipe.framework.image.MPImage;
-import com.google.mediapipe.framework.image.MediaImageBuilder;
-import com.google.mediapipe.tasks.components.containers.Detection;
 import com.google.mediapipe.tasks.core.BaseOptions;
 import com.google.mediapipe.tasks.vision.core.RunningMode;
 
@@ -34,8 +31,6 @@ import com.google.mediapipe.tasks.vision.facedetector.FaceDetector;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
 public class FaceFilter extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 200;
@@ -49,7 +44,7 @@ public class FaceFilter extends AppCompatActivity {
         FrameLayout layout = new FrameLayout(this);
         setContentView(layout);
 
-        AspectRatioSurfaceView surfaceView = new AspectRatioSurfaceView(this);
+        SurfaceViewAspectRatio surfaceView = new SurfaceViewAspectRatio(this);
         surfaceView.setAspectRatio(4f/3f);
         layout.addView(surfaceView);
 

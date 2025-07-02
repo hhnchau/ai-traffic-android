@@ -2,6 +2,7 @@ package com.cloublab.aitraffic.helper;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.util.Pair;
 
 import org.opencv.core.Mat;
 import org.tensorflow.lite.Interpreter;
@@ -60,5 +61,12 @@ public class FaceRecognitionHelper {
             result[i] = embedding[i] / norm;
         }
         return result;
+    }
+
+    private String match(float[] emb){
+        String best = "unknown";
+        double min = Float.MAX_VALUE;
+        //for(Pair<String, float[]> p: )
+        return "";
     }
 }
