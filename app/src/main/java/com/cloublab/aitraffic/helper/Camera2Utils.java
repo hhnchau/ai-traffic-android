@@ -12,7 +12,7 @@ import android.media.Image;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 
-public class CameraUtils {
+public class Camera2Utils {
     public static Bitmap yuvToBitmap(Image image, boolean isFrontCamera) {
         YuvImage yuvImage = convertYUV420888ToYuvImage(image);
         ByteArrayOutputStream out = new ByteArrayOutputStream();

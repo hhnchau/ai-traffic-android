@@ -8,16 +8,17 @@ import androidx.core.content.ContextCompat;
 import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.CameraManager;
 import android.media.Image;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.TextureView;
 import android.view.WindowManager;
+import android.widget.Toast;
 
 import com.cloublab.aitraffic.helper.Camera2TextureHelper;
+import com.cloublab.aitraffic.helper.Camera2Utils;
+import com.cloublab.aitraffic.helper.VibrationHelper;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
@@ -33,12 +34,14 @@ import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
-import java.util.Objects;
 
 public class TensorOpen extends AppCompatActivity {
     private static final String TAG = "AI-OPENCV";
+    private static final long DETECT_INTERVAL = 1000;
+    private long lastDetectTime = 0;
     private TextureView textureView;
-    private Camera2TextureHelper camera2TextureHelper;
+    private Interpreter tflite;
+    private List<String> labels;
     private boolean isProcessing = false;
 
     @Override
@@ -50,12 +53,31 @@ public class TensorOpen extends AppCompatActivity {
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        setupResources();
+
         if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CAMERA}, 1);
         }else {
             // Setup Camera
             setupCamera();
         }
+
+
+        Handler frameHandler = new Handler();
+        Runnable frameRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (textureView != null) {
+                    Bitmap bitmap = textureView.getBitmap();
+                    if (bitmap != null) {
+                        detect(bitmap);
+                    }
+                }
+                frameHandler.postDelayed(this, 1000);
+            }
+        };
+        frameHandler.post(frameRunnable);
+
     }
 
     @Override
@@ -72,31 +94,18 @@ public class TensorOpen extends AppCompatActivity {
         }
     }
 
-    private void initResource(CameraManager cameraManager){
-
-        try {
-            for(String id: cameraManager.getCameraIdList()){
-                CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
-                Integer lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING);
-                if(Objects.equals(lensFacing, CameraCharacteristics.LENS_FACING_BACK)){
-                    String cameraId = id;
-                    break;
-                }
-            }
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
+    private void setupResources(){
 
         if(OpenCVLoader.initLocal()){
-            Log.e(TAG, "Success");
+            Log.e(TAG, "OpenCV loaded successfully.");
         }else {
-            Log.e(TAG, "Fail");
+            Log.e(TAG, "Failed to load OpenCV.");
         }
 
         try {
-            Interpreter tflite = new Interpreter(loadTfModel());
+            tflite = new Interpreter(loadTfModel());
             Log.d(TAG, "Model loaded successfully.");
-            List<String> labels = FileUtil.loadLabels(this, "labels.txt");
+            labels = FileUtil.loadLabels(this, "labels.txt");
             Log.d(TAG, "Labels loaded successfully.");
         } catch (IOException e) {
             e.printStackTrace();
@@ -104,8 +113,8 @@ public class TensorOpen extends AppCompatActivity {
     }
 
     private void setupCamera(){
-        camera2TextureHelper = new Camera2TextureHelper(this, textureView, new android.util.Size(640, 480), this::processImage);
-        camera2TextureHelper.start(true);
+        Camera2TextureHelper camera2TextureHelper = new Camera2TextureHelper(this, textureView, new android.util.Size(640, 480), this::processImage);
+        camera2TextureHelper.start(false);
     }
 
     private MappedByteBuffer loadTfModel() throws IOException {
@@ -119,16 +128,30 @@ public class TensorOpen extends AppCompatActivity {
     }
 
     private void processImage(Image image){
+        long currentTime = System.currentTimeMillis();
+        if(currentTime - lastDetectTime < DETECT_INTERVAL){
+            image.close();
+            return;
+        }
+
         if (isProcessing) {
             image.close();
             return;
         }
         isProcessing = true;
+
+        //Bitmap bitmap = Camera2Utils.yuvToBitmap(image, false);
+        //image.close();
+
+        //detect(bitmap);
+        lastDetectTime = currentTime;
+
+        isProcessing = false;
     }
 
-    private void processImage(Bitmap bitmap){
-        if(bitmap == null){
-            Log.e(TAG, "Bitmap is null");
+    private void detect(Bitmap bitmap){
+        if(bitmap == null || tflite == null || labels == null){
+            Log.e(TAG, "Resource is null");
             return;
         }
 
@@ -151,22 +174,35 @@ public class TensorOpen extends AppCompatActivity {
             }
         }
 
-//        float [][] output = new float[1][label.size()];
-//        Interpreter tflite = null; //new Interpreter(loadTfModel());
-//        tflite.run(input, output);
-//
-//        int classIndex = getMaxIndex(output[0]);
-//        float probability = output[0][classIndex];
-//
-//        if(probability > 1){
-//            // Valid
-//            String label = labels.get(classIndex);
-//        }else {
-//            // Invalid
-//        }
+        float [][] output = new float[1][labels.size()];
+        try {
+            tflite.run(input, output);
+        } catch (Exception e) {
+            Log.e(TAG, "Error running TFLite model: " + e.getMessage());
+            return;
+        }
 
+        /// Debug
+        for (int i = 0; i < output[0].length; i++) {
+            Log.d(TAG, "Class " + i + ": " + output[0][i]);
+        }
 
+        int classIndex = getMaxIndex(output[0]);
+        float probability = output[0][classIndex];
 
+        Log.d(TAG, "Selected Class Index: " + classIndex);
+        Log.d(TAG, "Probability: " + probability);
+
+        if(probability > 0.7f){
+            // Valid
+            String label = labels.get(classIndex);
+            runOnUiThread(()->{
+                VibrationHelper.vibrate(this, 200);
+                Toast.makeText(this, label, Toast.LENGTH_SHORT).show();
+            });
+        }else {
+            // Invalid
+        }
     }
 
     private int getMaxIndex(float[] array){

@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import com.cloublab.aitraffic.helper.Camera2Helper;
-import com.cloublab.aitraffic.helper.CameraUtils;
+import com.cloublab.aitraffic.helper.Camera2Utils;
 import com.cloublab.aitraffic.helper.FaceDetectorHelper;
 import com.cloublab.aitraffic.helper.FaceRecognitionHelper;
 import com.cloublab.aitraffic.helper.ImageWrapper;
@@ -71,7 +71,7 @@ public class FaceDetector extends AppCompatActivity {
                 RectF box = detection.boundingBox();
                 faceBoxes.add(box);
 
-                Bitmap bitmapCrop = CameraUtils.cropToBoundingBox(imageWrapper.getBitmap(), box);
+                Bitmap bitmapCrop = Camera2Utils.cropToBoundingBox(imageWrapper.getBitmap(), box);
                 float[] embedding = faceRecognitionHelper.getFaceEmbedding(bitmapCrop);
 
                 String match = db.findNearestFace(embedding, THRESHOLD);
@@ -111,7 +111,7 @@ public class FaceDetector extends AppCompatActivity {
         }
         isProcessing = true;
 
-        Bitmap bitmap = CameraUtils.yuvToBitmap(image, true);
+        Bitmap bitmap = Camera2Utils.yuvToBitmap(image, true);
         image.close();
 
         imageWrapper = new ImageWrapper(bitmap);
