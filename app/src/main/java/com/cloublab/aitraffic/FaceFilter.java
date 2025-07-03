@@ -102,7 +102,7 @@ public class FaceFilter extends AppCompatActivity {
 
     private void startCamera(SurfaceHolder holder){
         camera2Helper = new Camera2Helper(this, holder, new Size(640, 480), this::processImage);
-        camera2Helper.start();
+        camera2Helper.start(true);
     }
 
     /*FACE BOUNDING BOX*/

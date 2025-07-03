@@ -2,7 +2,6 @@ package com.cloublab.aitraffic;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
@@ -43,15 +42,9 @@ import com.google.mlkit.vision.face.FaceDetectorOptions;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.tensorflow.lite.Interpreter;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -78,7 +71,7 @@ public class FaceRecognition extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_face_recognition);
 
-        faceHelper = new FaceRecognitionHelper(this);
+        faceHelper = new FaceRecognitionHelper(this,"");
 
         textureView = findViewById(R.id.textureView);
         overlayView = findViewById(R.id.overlayView);
@@ -267,16 +260,16 @@ public class FaceRecognition extends AppCompatActivity {
                         if (!name.equals("Unknown"))
                             Toast.makeText(this, name, Toast.LENGTH_SHORT).show();
 
-                        Rect mapped = overlayView.mapRectToOverlay(bounds, bitmapWidth, bitmapHeight, overlayWidth, overlayHeight, true);
-                        rects.add(mapped);
+                        //Rect mapped = overlayView.mapRectToOverlay(bounds, bitmapWidth, bitmapHeight, overlayWidth, overlayHeight, true);
+                        //rects.add(mapped);
                         labels.add(name);
-                        overlayView.setFaces(rects, labels);
+                        //overlayView.setFaces(rects, labels);
 
                         faceBitmap.recycle();
                     }
                 }
             }else {
-                overlayView.setFaces(new ArrayList<>(), new ArrayList<>());
+                //overlayView.setFaces(new ArrayList<>(), new ArrayList<>());
                 rects.clear();
                 labels.clear();
             }

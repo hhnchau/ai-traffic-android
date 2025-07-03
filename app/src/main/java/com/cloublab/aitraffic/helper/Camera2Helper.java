@@ -41,7 +41,7 @@ public class Camera2Helper {
         this.imageListener = imageListener;
     }
 
-    public void start() {
+    public void start(boolean isFrontCamera) {
         HandlerThread thread = new HandlerThread("CameraBackground");
         thread.start();
         backgroundHandler = new Handler(thread.getLooper());
@@ -54,7 +54,7 @@ public class Camera2Helper {
 
         CameraManager manager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
         try {
-            String cameraId = manager.getCameraIdList()[1];
+            String cameraId = manager.getCameraIdList()[isFrontCamera ? 1: 0];
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }

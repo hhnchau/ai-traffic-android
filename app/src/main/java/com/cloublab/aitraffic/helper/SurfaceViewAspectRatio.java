@@ -1,12 +1,17 @@
 package com.cloublab.aitraffic.helper;
 
 import android.content.Context;
+import android.util.AttributeSet;
 import android.view.SurfaceView;
 
 public class SurfaceViewAspectRatio extends SurfaceView {
     private float aspectRatio = 4f / 3f;
     public SurfaceViewAspectRatio(Context context){
         super(context);
+    }
+
+    public SurfaceViewAspectRatio(Context context, AttributeSet attrs) {
+        super(context, attrs);
     }
 
     public void setAspectRatio(float ratio){

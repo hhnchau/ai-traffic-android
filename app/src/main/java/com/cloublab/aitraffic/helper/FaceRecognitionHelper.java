@@ -2,9 +2,6 @@ package com.cloublab.aitraffic.helper;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.util.Pair;
-
-import org.opencv.core.Mat;
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.support.common.FileUtil;
 
@@ -12,17 +9,32 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
+import java.util.List;
 
 public class FaceRecognitionHelper {
     private final Interpreter tflite;
 
-    public FaceRecognitionHelper(Context context) {
+    public FaceRecognitionHelper(Context context, String modelFile) {
         try {
-            MappedByteBuffer tfliteModel = FileUtil.loadMappedFile(context, "mobile_face_net.tflite");
+            MappedByteBuffer tfliteModel = FileUtil.loadMappedFile(context, modelFile);
             tflite = new Interpreter(tfliteModel);
         } catch (IOException e) {
             throw new RuntimeException("Error reading model", e);
         }
+    }
+
+    public float[] averageEmbedding(List<float[]> embeddings){
+        int length = embeddings.get(0).length;
+        float[] avg = new float[length];
+        for(float[] emb: embeddings){
+            for(int i = 0; i < length; i++){
+                avg[i] += emb[i];
+            }
+        }
+        for(int i = 0; i < length; i++){
+            avg[i] /= embeddings.size();
+        }
+        return avg;
     }
 
     public float[] getFaceEmbedding(Bitmap bitmap) {
@@ -61,12 +73,5 @@ public class FaceRecognitionHelper {
             result[i] = embedding[i] / norm;
         }
         return result;
-    }
-
-    private String match(float[] emb){
-        String best = "unknown";
-        double min = Float.MAX_VALUE;
-        //for(Pair<String, float[]> p: )
-        return "";
     }
 }

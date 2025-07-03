@@ -1,30 +1,40 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
-    <TextureView
-        android:id="@+id/textureView"
+    <FrameLayout
+        android:id="@+id/frame"
         android:layout_width="match_parent"
-        android:layout_height="500dp" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        >
+        <com.cloublab.aitraffic.helper.SurfaceViewAspectRatio
+            android:id="@+id/surface"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <com.cloublab.aitraffic.helper.OverlayViewBox
+            android:id="@+id/overlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </FrameLayout>
+
 
     <EditText
         android:id="@+id/nameInput"
-        android:layout_below="@id/textureView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Tên người dùng" />
+        android:hint="Name" />
 
     <Button
         android:id="@+id/captureBtn"
-        android:layout_below="@id/nameInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Chụp ảnh" />
+        android:text="Capture" />
 
     <Button
         android:id="@+id/saveBtn"
-        android:layout_below="@id/captureBtn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Lưu khuôn mặt" />
-</RelativeLayout>
+        android:text="Save" />
+</LinearLayout>

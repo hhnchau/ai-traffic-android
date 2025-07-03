@@ -48,11 +48,18 @@ public class FaceDetectorHelper {
 
     }
 
-    public void detectAsync(Bitmap bitmap){
-        if(faceDetector != null){
-            faceDetector.detectAsync(new BitmapImageBuilder(bitmap).build(), System.nanoTime());
-        }else {
+    public void detectAsync(Bitmap bitmap, Runnable callback){
+        if(bitmap == null || faceDetector == null){
             Log.e("FACE_DETECTOR_HELPER", "Fae Detector is NULL");
+            return;
+        }
+
+        try {
+            MPImage mpImage = new BitmapImageBuilder(bitmap).build();
+            faceDetector.detectAsync(mpImage, System.currentTimeMillis());
+        }catch (Exception e){
+            Log.e("FACE_DETECTOR_HELPER", "Error creating MPImage", e);
+            callback.run();
         }
     }
 

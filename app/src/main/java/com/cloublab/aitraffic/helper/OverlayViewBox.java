@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.util.AttributeSet;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -29,6 +30,15 @@ public class OverlayViewBox extends View {
 
     public OverlayViewBox(Context context){
         super(context);
+        init();
+    }
+
+    public OverlayViewBox(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        init();
+    }
+
+    private void init(){
         boxPaint.setColor(Color.GREEN);
         boxPaint.setStyle(Paint.Style.STROKE);
         boxPaint.setStrokeWidth(5f);
@@ -41,7 +51,6 @@ public class OverlayViewBox extends View {
         bgPaint.setStyle(Paint.Style.FILL);
         bgPaint.setStrokeWidth(50f);
     }
-
 
     public void setFaceBoxes(FaceDetectorResult result, int imageWidth, int imageHeight){
        this.result = result;
