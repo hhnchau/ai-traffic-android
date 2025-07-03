@@ -5,25 +5,19 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
-import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CaptureRequest;
+import android.media.Image;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.util.Log;
-import android.view.Surface;
 import android.view.TextureView;
 import android.view.WindowManager;
+
+import com.cloublab.aitraffic.helper.Camera2TextureHelper;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
@@ -38,17 +32,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 public class TensorOpen extends AppCompatActivity {
     private static final String TAG = "AI-OPENCV";
     private TextureView textureView;
-    private Handler backgroundHandler;
-    private HandlerThread backgroundThread;
-    private CameraManager cameraManager;
-    private String cameraId;
+    private Camera2TextureHelper camera2TextureHelper;
+    private boolean isProcessing = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,21 +56,6 @@ public class TensorOpen extends AppCompatActivity {
             // Setup Camera
             setupCamera();
         }
-
-        Handler handler = new Handler();
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                if(textureView != null){
-                    Log.e(TAG, "[---GET-TEXTURE---]");
-                    //Bitmap bitmap = textureView.getBitmap();
-                    //processImage(bitmap);
-                }
-                handler.postDelayed(this,2000);
-            }
-        };
-        handler.post(runnable);
-
     }
 
     @Override
@@ -103,7 +79,7 @@ public class TensorOpen extends AppCompatActivity {
                 CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
                 Integer lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if(Objects.equals(lensFacing, CameraCharacteristics.LENS_FACING_BACK)){
-                    cameraId = id;
+                    String cameraId = id;
                     break;
                 }
             }
@@ -128,110 +104,8 @@ public class TensorOpen extends AppCompatActivity {
     }
 
     private void setupCamera(){
-        if(cameraManager == null){
-            cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        }
-
-        if(textureView.isAvailable()){
-            //Open Camera
-            openCamera();
-        }else {
-            textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-                @Override
-                public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
-                    Log.d(TAG, "SurfaceTexture is now available, opening camera...");
-                    // Open Camera
-                    openCamera();
-                }
-
-                @Override
-                public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surface, int width, int height) {
-                    Log.d(TAG, "SurfaceTexture is changed...");
-                }
-
-                @Override
-                public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surface) {
-                    Log.d(TAG, "SurfaceTexture is destroy...");
-                    return false;
-                }
-
-                @Override
-                public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surface) {
-                    //Log.d(TAG, "SurfaceTexture is update...");
-                }
-            });
-        }
-    }
-
-    private void openCamera(){
-        if(backgroundHandler == null){
-            startBackgroundThread();
-        }
-
-        if(cameraManager == null){
-            cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        }
-
-        try {
-
-            if(ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
-                return;
-            }
-            cameraManager.openCamera(cameraManager.getCameraIdList()[0], new CameraDevice.StateCallback() {
-                @Override
-                public void onOpened(@NonNull CameraDevice camera) {
-                    createCameraPreview(camera);
-                }
-
-                @Override
-                public void onDisconnected(@NonNull CameraDevice camera) {
-                    camera.close();
-                }
-
-                @Override
-                public void onError(@NonNull CameraDevice camera, int error) {
-                    camera.close();
-                }
-            }, backgroundHandler);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void createCameraPreview(CameraDevice cameraDevice){
-        if(backgroundHandler == null){
-            startBackgroundThread();
-        }
-        SurfaceTexture texture = textureView.getSurfaceTexture();
-        if(texture != null) {
-            texture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
-            Surface surface = new Surface(texture);
-            try {
-                CaptureRequest.Builder  captureRequestBuild = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-                captureRequestBuild.addTarget(surface);
-
-                cameraDevice.createCaptureSession(Collections.singletonList(surface), new CameraCaptureSession.StateCallback(){
-
-                    @Override
-                    public void onConfigured(@NonNull CameraCaptureSession session) {
-                        try {
-                            session.setRepeatingRequest(captureRequestBuild.build(), null, backgroundHandler);
-                        } catch (CameraAccessException e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    @Override
-                    public void onConfigureFailed(@NonNull CameraCaptureSession session) {
-
-                    }
-                }, backgroundHandler);
-
-            } catch (CameraAccessException e) {
-                e.printStackTrace();
-            }
-
-        }
+        camera2TextureHelper = new Camera2TextureHelper(this, textureView, new android.util.Size(640, 480), this::processImage);
+        camera2TextureHelper.start(true);
     }
 
     private MappedByteBuffer loadTfModel() throws IOException {
@@ -244,20 +118,12 @@ public class TensorOpen extends AppCompatActivity {
         }
     }
 
-    private void startBackgroundThread(){
-        backgroundThread = new HandlerThread("CameraBackground");
-        backgroundThread.start();
-        backgroundHandler = new Handler(backgroundThread.getLooper());
-    }
-    private void stopBackgroundThread(){
-        backgroundThread.quitSafely();
-        try {
-            backgroundThread.join();
-            backgroundThread = null;
-            backgroundHandler = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    private void processImage(Image image){
+        if (isProcessing) {
+            image.close();
+            return;
         }
+        isProcessing = true;
     }
 
     private void processImage(Bitmap bitmap){
@@ -315,9 +181,4 @@ public class TensorOpen extends AppCompatActivity {
         return maxIndex;
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        stopBackgroundThread();
-    }
 }
