@@ -1,68 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_gravity="center">
-    <LinearLayout
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/preview_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/tensor_open"
+
+    <com.cloublab.aitraffic.CustomImageView.CustomImageView
+        android:id="@+id/recognizeView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_margin="4dp"
-        android:text="TENSORFLOW-OPENCV" />
+        android:layout_height="match_parent"
+        android:elevation="2dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/filter"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_margin="4dp"
-        android:text="FACE-FILTER" />
+    <TextView
+        android:id="@+id/log_textview"
+        android:layout_width="0dp"
+        android:layout_height="200dp"
+        android:background="@drawable/textview_background"
+        android:maxHeight="36dp"
+        android:text="Welcome!"
+        android:padding="16dp"
+        android:gravity="bottom"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-    <Button
-        android:id="@+id/register"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_margin="4dp"
-        android:text="FACE-REGISTER" />
-
-    <Button
-        android:id="@+id/recognition"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_margin="4dp"
-        android:text="FACE-RECOGNITION" />
-
-    <Button
-        android:id="@+id/detector"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_margin="4dp"
-        android:text="FACE-DETECTOR" />
-
-        <Button
-            android:id="@+id/net_register"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:layout_margin="4dp"
-            android:text="FACE-NET-REGISTER" />
-
-        <Button
-            android:id="@+id/net_detector"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:layout_margin="4dp"
-            android:text="FACE-NET-DETECTOR" />
-
-    </LinearLayout>
-</ScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -12,6 +12,9 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        ndk {
+            abiFilters 'armeabi-v7a'
+        }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -23,8 +26,12 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    aaptOptions {
+        noCompress "tflite"
+        noCompress "lite"
     }
 }
 
@@ -37,19 +44,32 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 
-    implementation project(':openCV')
-    implementation 'org.tensorflow:tensorflow-lite:2.16.1'
-    implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
-
-    //Face Detection
-    implementation 'com.google.mlkit:face-detection:16.1.5'
-
-    // Google Vision
-    implementation 'com.google.mediapipe:tasks-vision:0.10.21'
+    constraints {
+        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.0") {
+            because("kotlin-stdlib-jdk7 is now a part of kotlin-stdlib")
+        }
+        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.0") {
+            because("kotlin-stdlib-jdk8 is now a part of kotlin-stdlib")
+        }
+    }
 
     //CameraX
-    implementation "androidx.camera:camera-camera2:1.3.0"
-    implementation "androidx.camera:camera-lifecycle:1.4.2"
-    implementation "androidx.camera:camera-view:1.4.2"
+    def cameraxVersion = "1.3.0-alpha06"
+    implementation "androidx.camera:camera-core:${cameraxVersion}"
+    implementation "androidx.camera:camera-camera2:${cameraxVersion}"
+    implementation "androidx.camera:camera-lifecycle:${cameraxVersion}"
+
+    // CameraX View class
+    implementation 'androidx.camera:camera-view:1.3.0-alpha06'
+
+    //tensorflow-lite
+    implementation 'org.tensorflow:tensorflow-lite:0.0.0-nightly'
+    implementation 'org.tensorflow:tensorflow-lite:2.11.0'
+    implementation 'org.tensorflow:tensorflow-lite-gpu:2.11.0'
+    implementation 'org.tensorflow:tensorflow-lite-gpu-api:2.11.0'
+    implementation 'org.tensorflow:tensorflow-lite-support:0.4.2'
+
+    //guava
+    implementation 'com.google.guava:guava:28.2-jre'
 
 }
