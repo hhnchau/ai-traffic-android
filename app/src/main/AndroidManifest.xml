@@ -34,7 +34,8 @@
         <activity android:name=".FaceRecognition"/>
         <activity android:name=".FaceFilter"/>
         <activity android:name=".FaceDetector"/>
-        <activity android:name=".FaceNet"/>
+        <activity android:name=".FaceNetDetector"/>
+        <activity android:name=".FaceNetRegister"/>
 
         <provider
             android:name="androidx.core.content.FileProvider"

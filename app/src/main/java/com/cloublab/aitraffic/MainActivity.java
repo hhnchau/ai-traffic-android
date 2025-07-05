@@ -1,21 +1,10 @@
 package com.cloublab.aitraffic;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ImageView;
-import android.widget.Toast;
-
-import com.cloublab.aitraffic.helper.FaceRecognitionHelper;
-import com.cloublab.aitraffic.helper.JsonDatabase;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -62,10 +51,17 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.net).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.net_detector).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, FaceNet.class));
+                startActivity(new Intent(MainActivity.this, FaceNetDetector.class));
+            }
+        });
+
+        findViewById(R.id.net_register).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, FaceNetRegister.class));
             }
         });
 

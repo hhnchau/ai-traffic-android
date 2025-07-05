@@ -49,12 +49,20 @@
         android:text="FACE-DETECTOR" />
 
         <Button
-            android:id="@+id/net"
+            android:id="@+id/net_register"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
             android:layout_margin="4dp"
-            android:text="FACE-NET" />
+            android:text="FACE-NET-REGISTER" />
+
+        <Button
+            android:id="@+id/net_detector"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:layout_margin="4dp"
+            android:text="FACE-NET-DETECTOR" />
 
     </LinearLayout>
 </ScrollView>

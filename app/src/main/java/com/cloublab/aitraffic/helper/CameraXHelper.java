@@ -67,6 +67,7 @@ public class CameraXHelper {
                 ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
                         .setResolutionSelector(size)
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                         .build();
 
                 imageAnalysis.setAnalyzer(getExecutor(), image -> {
